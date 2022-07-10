@@ -87,4 +87,26 @@ router.post('/active', async(req,res)=>{
 
 })
 
+router.get('/', async(req, res)=>{
+    try{
+
+        let response = await user.findOne({
+            where: {
+                username : req.query.username,
+            }
+        })
+
+        if(response.password == req.query.password){
+            return res.status(200).send('Senha correta')
+        }
+
+        res.status(401).send('Não autorizado')
+        
+    }catch(e){
+        console.log('[/user/register/active]:', e)
+        return res.status(500).send('Erro desconhecido');
+    }
+
+})
+
 module.exports = app => app.use('/register', router)
