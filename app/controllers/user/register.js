@@ -47,9 +47,44 @@ router.post('/', async(req, res)=>{
         tokenValid: expire,
     })
 
-    res.send(200)
+    res.send(200).status('Usuario criado com sucesso, agora e necessario confirmar o seu email');
 })
 
-router.post('/active/id')
+router.post('/active', async(req,res)=>{
+    try{
+        if(!req.body.username || !req.body.token){
+            return res.status(400).json({
+                error: 'Dados insuficientes'
+            });
+        }
+        
+        username = req.body.username;
+        token = req.body.token;
+
+        let response = await user.findOne({
+            where: {
+                username: username,
+                token: token,
+                state: 'pending'
+            }
+        })
+
+        if(!response)
+            return res.status(404).send('Dados não conferem');
+
+        if(new Date() > response.tokenValid)
+            return res.status(400).send('Token expirado');
+
+        await response.update({
+            state: 'active'
+        })
+
+        res.status(200).send('Usuario ativado com sucesso')
+    }catch(e){
+        console.log('[/user/register/active]:', e)
+        return res.status(500).send('Erro desconhecido');
+    }
+
+})
 
 module.exports = app => app.use('/register', router)
