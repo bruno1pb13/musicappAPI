@@ -6,7 +6,7 @@ const {Op} = require('sequelize');
 const model = require('../../../models');
 const user = model.User;
 const {jwt} = require('../../modules/jwt')
-
+const mailer = require('../../modules/mailer')
 router.post('/', async(req, res)=>{
 
     if(!req.body.username || !req.body.email || !req.body.password)
@@ -37,6 +37,7 @@ router.post('/', async(req, res)=>{
     let token = Math.floor(Math.random() * 9000) + 1000;
     //create uuid
 
+
     bcrypt.hash(req.body.password, 10, async(err, hash)=>{
         if(err)
             return res.status(500).send('Erro ao criptografar senha');
@@ -58,6 +59,17 @@ router.post('/', async(req, res)=>{
             return res.status(400).send('Erro ao criar usuario');
 
         res.status(200).send('Usuario criado com sucesso, agora e necessario confirmar o seu email');
+
+        mailer.sendMail({
+            to: req.body.email,
+            from: 'bruno@musicbay.space',
+            template: 'recoveryPassword',
+            context: { token }
+        }, (err) =>{
+            if(err){
+                console.log(err)
+            }
+        })
     })
 
 })
@@ -97,6 +109,48 @@ router.post('/active', async(req,res)=>{
         return res.status(500).send('Erro desconhecido');
     }
 
+})
+
+router.get('/recoveryPassword/:email', async(req,res)=>{
+    try{
+
+        if(!req.params.email)
+            return res.status(400).send('Email não informado');
+
+        let response = await user.findOne({
+            where: {
+                email: req.params.email
+            }
+        })
+
+        if(!response)
+            return res.status(404).send('Email não encontrado');
+
+        let token = Math.floor(Math.random() * 9000) + 1000;
+        //create uuid
+
+        response = await response.update({
+            token: token,
+            tokenValid: new Date().setHours(new Date().getHours() + 3)
+        })
+
+        if(response)
+            res.status(200).send('Token enviado');
+
+            mailer.sendMail({
+                to: req.params.email,
+                from: 'bruno@musicbay.space',
+                template: 'recoveryPassword',
+                context: { token }
+            }, (err) =>{
+                if(err){
+                    console.log(err)
+                }
+            })
+
+    }catch(e){
+        console.log('[/user/register/recoveryPassword]:', e)
+    }
 })
 
 router.get('/', async(req, res)=>{
